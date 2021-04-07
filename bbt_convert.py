@@ -29,7 +29,7 @@ def main():
                 .output(out_filename) \
                 .run()
    
-    clip out credits and create trimmed video
+    #clip out credits and create trimmed video
     subprocess.check_output("ffmpeg.exe -i %s -ss 00 -to %s %s" % (input_file, end_time, out_file))
 
 ''' Returns the timestamp in a video that matches a screenshot '''
