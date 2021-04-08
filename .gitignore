@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+ffplay.exe
+ffmpeg.exe
+ffprobe.exe
