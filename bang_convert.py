@@ -20,7 +20,7 @@ def trim_video(in_filename, out_filename):
     
     intro_screenshot = "Z:\snapshots\s02e01_intro.jpg"
     credits_length = 31.0
-    intro_length = 30.0
+    intro_length = 23.0
 
     # get total time in video    
     probe = ffmpeg.probe(in_filename)
@@ -28,15 +28,33 @@ def trim_video(in_filename, out_filename):
 
     search_start_time = 200
     search_duration = 100
-    intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=search_start_time, search_duration=search_duration)
+    #intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=search_start_time, search_duration=search_duration)
+    intro_start = 258.541956
+    intro_offset = 0.5
+    intro_start = intro_start - intro_offset
+    intro_end = intro_start + intro_length
 
     # calculate new end time for trimmed video
-    end_time = total_duration - credits_length
+    end_time = total_duration - intro_end - credits_length
     #trim credits
-    #input = ffmpeg.input(in_filename) \
-     #           .trim(start=0.0, end=end_time) \
-      #          .output(out_filename) \
-       #         .run()
+
+    # clip videos: before intro; after intro but before credits.
+    # need to use ss and t parameters and not .trim(). .trim() doesn't clip out sound
+    i1 = ffmpeg.input(in_filename, ss=0.0, t=intro_start)
+    i2 = ffmpeg.input(in_filename, ss=intro_end, t=end_time)
+
+    # clip out video and audio streams, join them, then write the final output.
+    v1 = i1.video
+    a1 = i1.audio
+    v2 = i2.video
+    a2 = i2.audio
+
+    joined = ffmpeg.concat(v1, a1, v2, a2, v=1, a=1).node
+    v3 = joined[0]
+    a3 = joined[1].filter('volume', 0.8)
+    
+    out = ffmpeg.output(v3, a3, out_filename)
+    out.run()
 
 
 ''' Returns the timestamp in a video that matches a screenshot '''
