@@ -5,24 +5,26 @@ import re
 
 def main():
 
+    # Fina all .mp4 files in a directory.
     parent_dir = r"Z:\The Big Bang Theory S01-S10 (2007-)\season12_temp"
     #parent_dir = r"G:\Plex\The Big Bang Theory\The Big Bang Theory S01-S10 (2007-)\season12_temp"
     files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f if file.endswith(".mp4")]
 
     for in_filename in files_path:
         in_filename_split = os.path.splitext(in_filename)
-        out_filename_trim = in_filename_split[0] + "_trim" + in_filename_split[1]
+        out_filename_clipped = in_filename_split[0] + "_trim" + in_filename_split[1]
         out_filename_color = in_filename_split[0] + "_color" + in_filename_split[1]
         
-        #trim_video(in_filename, out_filename_trim)   
-        change_color_temperature(in_filename, out_filename_color, temperature=4000)   
+        remove_intro_and_credits(in_filename, out_filename_clipped)   
+        #change_color_temperature(in_filename, out_filename_color, temperature=4000)   
 
 
-def clip_video(in_filename, out_filename):
+def remove_intro_and_credits(in_filename, out_filename):
     
     intro_screenshot = r"Z:\snapshots\s12_intro.jpg"
     credits_screenshot = r"Z:\snapshots\s12_credits.jpg"
 
+    # get all timestamps in the video that match the still frames of the intro and credits.
     intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=60, search_duration=300)
     intro_start_offset = -1
     intro_start = intro_start + intro_start_offset
@@ -32,7 +34,7 @@ def clip_video(in_filename, out_filename):
 
     credits_start = find_screenshot_time(in_filename, credits_screenshot, search_start_time=1000, search_duration=300)
 
-    # calculate new end time for trimmed video. 
+    # calculate new end time for clipped video. 
     credits_start_offset = 0.75
     end_duration = credits_start + credits_start_offset - intro_end
 
@@ -43,6 +45,10 @@ def clip_video(in_filename, out_filename):
     i1 = ffmpeg.input(in_filename, ss=0.0, t=intro_start)
     i2 = ffmpeg.input(in_filename, ss=intro_end, t=end_duration)
 
+    concat_videos(i1, i2, out_filename)
+    
+""" Concat two video streams together """
+def concat_videos(i1, i2, out_filename):
     # get video and audio streams, join them, then write the final output.
     v1 = i1.video
     a1 = i1.audio
@@ -54,11 +60,11 @@ def clip_video(in_filename, out_filename):
     a3 = joined[1]
     
     out = ffmpeg.output(v3, a3, out_filename)
-    out.run(overwrite_output=True)
+    return out.run(overwrite_output=True)
 
 
-''' Returns the timestamp in a video that matches a screenshot '''
-def find_screenshot_time(in_filename, screenshot, search_start_time=0.0, search_duration=0.0):
+''' Returns the timestamp in a video that matches an image '''
+def find_screenshot_time(in_filename, image_filename, search_start_time=0.0, search_duration=0.0):
 
     if (search_duration==0.0):
         # get total time in video    
@@ -68,9 +74,10 @@ def find_screenshot_time(in_filename, screenshot, search_start_time=0.0, search_
     """ find all matching frames for the screenshot.
         -ss = start time
         -t = search time 
-        blackframe = amount of pixels matching the screenshot in each frame e.g. 99:32. 99% of pixels are less than
+        blackframe = amount of pixels matching the screenshot in each frame e.g. 99:32. 99% of pixels are less than 32 value in the
+        difference image between the video frame and still image.
         returns a large string of information."""
-    subprocess_result = subprocess.getoutput("ffmpeg.exe -ss %d -t %d -i \"%s\" -loop 1 -i \"%s\" -an -filter_complex \"[0]extractplanes=y[v];[1]extractplanes=y[i];[v][i]blend=difference:shortest=1,blackframe=99:32\" -f null -" % (search_start_time, search_duration, in_filename, screenshot))
+    subprocess_result = subprocess.getoutput("ffmpeg.exe -ss %d -t %d -i \"%s\" -loop 1 -i \"%s\" -an -filter_complex \"[0]extractplanes=y[v];[1]extractplanes=y[i];[v][i]blend=difference:shortest=1,blackframe=99:32\" -f null -" % (search_start_time, search_duration, in_filename, image_filename))
 
     # find floating point number in string that is after " t:". e.g. " t:50.2424". This is the timestamp of the frames that match the image.
     # take the first one in case of multiple matches.
