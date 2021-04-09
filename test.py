@@ -13,5 +13,16 @@ class TestVideos(unittest.TestCase):
         time = bang_convert.find_screenshot_time(in_filename, screenshot, search_start_time=search_start_time, search_duration=search_duration)
         self.assertEqual(time, 250.541956)
 
+    def test_format_convert(self):
+        in_filename_path = r"Z:\unittest\short_video"
+        in_filename = in_filename_path + ".mp4"
+        out_format = "mkv"
+        out_filename = in_filename_path + ".mkv"
+        
+        bang_convert.convert_format(in_filename, out_format)
+        
+        path = Path(out_filename)
+        self.assertTrue((str(path), path.is_file()), (str(path), True))
+
 if __name__ == '__main__':
     unittest.main()

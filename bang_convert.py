@@ -5,18 +5,18 @@ import re
 
 def main():
 
-    # Fina all .mp4 files in a directory.
-    parent_dir = r"Z:\The Big Bang Theory S01-S10 (2007-)\season12_temp"
-    #parent_dir = r"G:\Plex\The Big Bang Theory\The Big Bang Theory S01-S10 (2007-)\season12_temp"
-    files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f if file.endswith(".mp4")]
+    # Find all .mp4 files in a directory.
+    parent_dir = r"Z:\converting"
+    #parent_dir = r"G:\Plex\The Big Bang Theory\converting"
+    files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f if file.endswith(".mkv")]
 
     for in_filename in files_path:
         in_filename_split = os.path.splitext(in_filename)
         out_filename_clipped = in_filename_split[0] + "_trim" + in_filename_split[1]
         out_filename_color = in_filename_split[0] + "_color" + in_filename_split[1]
         
-        remove_intro_and_credits(in_filename, out_filename_clipped)   
-        #change_color_temperature(in_filename, out_filename_color, temperature=4000)   
+        #remove_intro_and_credits(in_filename, out_filename_clipped)   
+        change_color_temperature(in_filename, out_filename_color, temperature=4500)   
 
 
 def remove_intro_and_credits(in_filename, out_filename):
@@ -125,6 +125,11 @@ def change_color_temperature(in_filename, out_filename, temperature):
     # Need to force the pix_fmt to yuv420p for apps to play it. The colorchannel mixer tries to change it by default.
     out = ffmpeg.output(v1_color, a1, out_filename, pix_fmt='yuv420p')
     out.run(overwrite_output=True)
+
+def convert_format(in_filename, out_format):
+    in_filename_split = os.path.splitext(in_filename)
+    out_filename = in_filename_split[0] + "." + out_format
+    ffmpeg.input(in_filename).output(out_filename, c="copy").run(overwrite_output=True)
 
 if __name__ == "__main__":
     main()
