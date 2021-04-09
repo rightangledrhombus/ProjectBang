@@ -5,20 +5,23 @@ import re
 
 def main():
 
-    parent_dir = "Z:\The Big Bang Theory S01-S10 (2007-)\season12_temp"
-    files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f]
+    parent_dir = r"Z:\The Big Bang Theory S01-S10 (2007-)\season12_temp"
+    #parent_dir = r"G:\Plex\The Big Bang Theory\The Big Bang Theory S01-S10 (2007-)\season12_temp"
+    files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f if file.endswith(".mp4")]
 
     for in_filename in files_path:
         in_filename_split = os.path.splitext(in_filename)
-        out_filename = in_filename_split[0] + "_trim" + in_filename_split[1]
+        out_filename_trim = in_filename_split[0] + "_trim" + in_filename_split[1]
+        out_filename_color = in_filename_split[0] + "_color" + in_filename_split[1]
         
-        trim_video(in_filename, out_filename)   
+        #trim_video(in_filename, out_filename_trim)   
+        change_color_temperature(in_filename, out_filename_color, temperature=4000)   
 
 
-def trim_video(in_filename, out_filename):
+def clip_video(in_filename, out_filename):
     
-    intro_screenshot = "Z:\snapshots\s12_intro.jpg"
-    credits_screenshot = "Z:\snapshots\s12_credits.jpg"
+    intro_screenshot = r"Z:\snapshots\s12_intro.jpg"
+    credits_screenshot = r"Z:\snapshots\s12_credits.jpg"
 
     intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=60, search_duration=300)
     intro_start_offset = -1
@@ -51,7 +54,7 @@ def trim_video(in_filename, out_filename):
     a3 = joined[1]
     
     out = ffmpeg.output(v3, a3, out_filename)
-    out.run()
+    out.run(overwrite_output=True)
 
 
 ''' Returns the timestamp in a video that matches a screenshot '''
@@ -71,9 +74,50 @@ def find_screenshot_time(in_filename, screenshot, search_start_time=0.0, search_
 
     # find floating point number in string that is after " t:". e.g. " t:50.2424". This is the timestamp of the frames that match the image.
     # take the first one in case of multiple matches.
-    screenshot_time = float(re.compile(' t:(\d+\.\d+)').findall(subprocess_result)[0]) + search_start_time
+    screenshot_time = float(re.compile(r' t:(\d+\.\d+)').findall(subprocess_result)[0]) + search_start_time
 
     return screenshot_time
+
+""" Changes the color temperature of a video. 
+    temperature = temp in kelvin in incrememts of 500 from 1000-10000 """
+def change_color_temperature(in_filename, out_filename, temperature):
+    
+    # table of values for different temperatures
+    kelvin_table = {
+    1000: (255,56,0),
+    1500: (255,109,0),
+    2000: (255,137,18),
+    2500: (255,161,72),
+    3000: (255,180,107),
+    3500: (255,196,137),
+    4000: (255,209,163),
+    4500: (255,219,186),
+    5000: (255,228,206),
+    5500: (255,236,224),
+    6000: (255,243,239),
+    6500: (255,249,253),
+    7000: (245,243,255),
+    7500: (235,238,255),
+    8000: (227,233,255),
+    8500: (220,229,255),
+    9000: (214,225,255),
+    9500: (208,222,255),
+    10000: (204,219,255)}
+
+    if (temperature % 500):
+        raise Exception("Temperature must be a multiple of 500 in the range 100-10000")
+
+    r, g, b = kelvin_table[temperature]
+
+    i1 = ffmpeg.input(in_filename)
+    v1 = i1.video
+    a1 = i1.audio
+
+    v1_color = v1.colorchannelmixer(rr=r/255, gg=g/255, bb=b/255)
+
+    # Need to force the pix_fmt to yuv420p for apps to play it. The colorchannel mixer tries to change it by default.
+    out = ffmpeg.output(v1_color, a1, out_filename, pix_fmt='yuv420p')
+    out.run(overwrite_output=True)
 
 if __name__ == "__main__":
     main()
