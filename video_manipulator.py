@@ -2,27 +2,32 @@ import os
 import subprocess
 import ffmpeg
 import re
+from pathlib import Path
+import glob
 
 def main():
 
     # Find all .mp4 files in a directory.
-    parent_dir = r"Z:\converting"
-    #parent_dir = r"G:\Plex\The Big Bang Theory\converting"
-    files_path = [os.path.join(r,file) for r,d,f in os.walk(parent_dir) for file in f if file.endswith(".mkv")]
+    #parent_dir = r"Z:\converting"
+    parent_dir = r"G:\Plex\The Big Bang Theory\converting"
+    files_path = [os.path.join(root,file) for root,dir,f in os.walk(parent_dir) for file in f if file.endswith(".mkv")]
 
     for in_filename in files_path:
-        in_filename_split = os.path.splitext(in_filename)
-        out_filename_clipped = in_filename_split[0] + "_trim" + in_filename_split[1]
-        out_filename_color = in_filename_split[0] + "_color" + in_filename_split[1]
+        out_filename_clipped = append_to_filename(in_filename, "_trim")
+        out_filename_color = append_to_filename(in_filename, "_color")
         
-        #remove_intro_and_credits(in_filename, out_filename_clipped)   
-        change_color_temperature(in_filename, out_filename_color, temperature=4500)   
-
+        remove_intro_and_credits(in_filename, out_filename_clipped)   
+        change_color_temperature(out_filename_clipped, out_filename_color, temperature=4000) 
+        
+        convert_audio_codec(out_filename_color, append_to_filename(out_filename_color, "_ac3"), "ac3")  
 
 def remove_intro_and_credits(in_filename, out_filename):
     
-    intro_screenshot = r"Z:\snapshots\s12_intro.jpg"
-    credits_screenshot = r"Z:\snapshots\s12_credits.jpg"
+    # intro_screenshot = r"Z:\snapshots\s12_intro.jpg"
+    # credits_screenshot = r"Z:\snapshots\s12_credits.jpg"
+    intro_screenshot = r"G:\Plex\The Big Bang Theory\snapshots\s12_intro.jpg"
+    credits_screenshot = r"G:\Plex\The Big Bang Theory\snapshots\s12_credits.jpg"
+
 
     # get all timestamps in the video that match the still frames of the intro and credits.
     intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=60, search_duration=300)
@@ -49,6 +54,7 @@ def remove_intro_and_credits(in_filename, out_filename):
     
 """ Concat two video streams together """
 def concat_videos(i1, i2, out_filename):
+    
     # get video and audio streams, join them, then write the final output.
     v1 = i1.video
     a1 = i1.audio
@@ -117,19 +123,32 @@ def change_color_temperature(in_filename, out_filename, temperature):
     r, g, b = kelvin_table[temperature]
 
     i1 = ffmpeg.input(in_filename)
-    v1 = i1.video
+    v1 = i1.video.colorchannelmixer(rr=r/255, gg=g/255, bb=b/255)
     a1 = i1.audio
 
-    v1_color = v1.colorchannelmixer(rr=r/255, gg=g/255, bb=b/255)
-
     # Need to force the pix_fmt to yuv420p for apps to play it. The colorchannel mixer tries to change it by default.
-    out = ffmpeg.output(v1_color, a1, out_filename, pix_fmt='yuv420p')
+    out = ffmpeg.output(v1, a1, out_filename, pix_fmt='yuv420p', acodec='copy')
     out.run(overwrite_output=True)
 
-def convert_format(in_filename, out_format):
+""" Converts a video file to another audio codec """
+def convert_audio_codec(in_filename, out_filename, out_codec):
+
+    ffmpeg.input(in_filename).output(out_filename, vcodec="copy", acodec=out_codec).run(overwrite_output=True)
+
+
+""" Converts a video file to another format.
+    out_format = format without "." e.g. "mp4" """
+def convert_video_container(in_filename, out_codec):
+
     in_filename_split = os.path.splitext(in_filename)
-    out_filename = in_filename_split[0] + "." + out_format
+    out_filename = in_filename_split[0] + "." + out_codec
     ffmpeg.input(in_filename).output(out_filename, c="copy").run(overwrite_output=True)
+
+""" Appends a string to a filename
+    Returns fill path """
+def append_to_filename(in_filename, string_to_append):
+
+    return str(Path.joinpath(Path(in_filename).parent, Path(in_filename).stem + string_to_append + Path(in_filename).suffix))
 
 if __name__ == "__main__":
     main()

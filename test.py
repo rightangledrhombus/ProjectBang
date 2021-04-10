@@ -1,16 +1,16 @@
 import unittest
 import os
 from pathlib import Path
-import bang_convert
+import video_manipulator
 
 class TestVideos(unittest.TestCase):
 
     def test_find_screenshot_time(self):
-        in_filename = in_filename = r"Z:\The Big Bang Theory S01-S10 (2007-)\season12_temp\The.Big.Bang.Theory.S12E09.WEBRip.x264-ION10.mp4"
-        screenshot = screenshot = r"Z:\snapshots\s12_intro.jpg"
+        in_filename = in_filename = r"Z:\unittest\The.Big.Bang.Theory.S12E09.WEBRip.x264-ION10.mp4"
+        screenshot = screenshot = r"Z:\unittest\s12_intro.jpg"
         search_start_time = 250
         search_duration = 90
-        time = bang_convert.find_screenshot_time(in_filename, screenshot, search_start_time=search_start_time, search_duration=search_duration)
+        time = video_manipulator.find_screenshot_time(in_filename, screenshot, search_start_time=search_start_time, search_duration=search_duration)
         self.assertEqual(time, 250.541956)
 
     def test_format_convert(self):
@@ -19,7 +19,7 @@ class TestVideos(unittest.TestCase):
         out_format = "mkv"
         out_filename = in_filename_path + ".mkv"
         
-        bang_convert.convert_format(in_filename, out_format)
+        video_manipulator.convert_video_container(in_filename, out_format)
         
         path = Path(out_filename)
         self.assertTrue((str(path), path.is_file()), (str(path), True))
