@@ -7,31 +7,36 @@ import glob
 
 def main():
 
-    # Find all .mp4 files in a directory.
-    #parent_dir = r"Z:\converting"
-    parent_dir = r"G:\Plex\The Big Bang Theory\converting"
-    files_path = [os.path.join(root,file) for root,dir,f in os.walk(parent_dir) for file in f if file.endswith(".mkv")]
+    # Find all .video files in a directory.
+    parent_dir = r"G:\Plex\Video Conversion\converting"
+    # Find all video files in directory except for ones ending in "_".ext. This is so it doesn't find files created by this program when rerunning.
+    # Files created by this program will all end in "_".ext
+    files_path = [os.path.join(root,file) for root,dir,f in os.walk(parent_dir) for file in f if (file.endswith(".mkv") and not file.endswith("_.mkv"))]
 
     for in_filename in files_path:
-        out_filename_clipped = append_to_filename(in_filename, "_trim")
-        out_filename_color = append_to_filename(in_filename, "_color")
+        out_filename_clipped = append_to_filename(in_filename, "_trim_")
+        out_filename_color = append_to_filename(in_filename, "_color_")
+        out_filename_audio = append_to_filename(in_filename, "_ac3_stereo_")
+
+        # Check if the files exist before running. This is done so the script can be stopped and resumed.
+        if (not Path(out_filename_clipped).is_file()):
+            remove_intro_and_credits(in_filename, out_filename_clipped)   
+
+        if (not Path(out_filename_color).is_file()):
+            change_color_temperature(out_filename_clipped, out_filename_color, temperature=3500) 
         
-        remove_intro_and_credits(in_filename, out_filename_clipped)   
-        change_color_temperature(out_filename_clipped, out_filename_color, temperature=4000) 
-        
-        convert_audio_codec(out_filename_color, append_to_filename(out_filename_color, "_ac3"), "ac3")  
+        if (not Path(out_filename_audio).is_file()):
+            convert_audio_codec(out_filename_color, out_filename_audio, "ac3", n_audio_channels=2)  
+
 
 def remove_intro_and_credits(in_filename, out_filename):
-    
-    # intro_screenshot = r"Z:\snapshots\s12_intro.jpg"
-    # credits_screenshot = r"Z:\snapshots\s12_credits.jpg"
-    intro_screenshot = r"G:\Plex\The Big Bang Theory\snapshots\s12_intro.jpg"
-    credits_screenshot = r"G:\Plex\The Big Bang Theory\snapshots\s12_credits.jpg"
 
+    intro_screenshot = r"G:\Plex\snapshots\s12_intro.jpg"
+    credits_screenshot = r"G:\Plex\snapshots\s12_credits.jpg"
 
     # get all timestamps in the video that match the still frames of the intro and credits.
     intro_start = find_screenshot_time(in_filename, intro_screenshot, search_start_time=60, search_duration=300)
-    intro_start_offset = -1
+    intro_start_offset = -0.9
     intro_start = intro_start + intro_start_offset
 
     intro_length = 23.5
@@ -131,21 +136,25 @@ def change_color_temperature(in_filename, out_filename, temperature):
     out.run(overwrite_output=True)
 
 """ Converts a video file to another audio codec """
-def convert_audio_codec(in_filename, out_filename, out_codec):
+def convert_audio_codec(in_filename, out_filename, out_codec, n_audio_channels="copy"):
 
-    ffmpeg.input(in_filename).output(out_filename, vcodec="copy", acodec=out_codec).run(overwrite_output=True)
+    if (n_audio_channels == "copy"):
+        probe = ffmpeg.probe(in_filename)
+        n_audio_channels = float(probe['streams'][1]['channels'])
+
+    ffmpeg.input(in_filename).output(out_filename, vcodec="copy", acodec=out_codec, ac=n_audio_channels).run(overwrite_output=True)
 
 
-""" Converts a video file to another format.
-    out_format = format without "." e.g. "mp4" """
-def convert_video_container(in_filename, out_codec):
+""" Converts a video file to another container.
+    out_container = format without "." e.g. "mp4" """
+def convert_video_container(in_filename, out_container):
 
     in_filename_split = os.path.splitext(in_filename)
-    out_filename = in_filename_split[0] + "." + out_codec
+    out_filename = in_filename_split[0] + "." + out_container
     ffmpeg.input(in_filename).output(out_filename, c="copy").run(overwrite_output=True)
 
 """ Appends a string to a filename
-    Returns fill path """
+    Returns file path """
 def append_to_filename(in_filename, string_to_append):
 
     return str(Path.joinpath(Path(in_filename).parent, Path(in_filename).stem + string_to_append + Path(in_filename).suffix))
