@@ -3,7 +3,6 @@ import subprocess
 import ffmpeg
 import re
 from pathlib import Path
-import glob
 
 def main():
 
